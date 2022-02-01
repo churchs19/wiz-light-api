@@ -24,6 +24,6 @@ public class NetworkInfo
 
     public NetworkInfoResponse ToResponse()
     {
-        return new NetworkInfoResponse(HostIP?.ToString() ?? "", String.Join(' ', MacAddress.Select(b => b.ToString("X2"))));
+        return new NetworkInfoResponse(HostIP?.ToString() ?? "", String.Join("", MacAddress.Select(b => b.ToString("X2"))));
     }
 }

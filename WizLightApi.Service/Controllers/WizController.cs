@@ -45,27 +45,34 @@ public class WizController : ControllerBase
                     && !string.IsNullOrWhiteSpace(light.IpAddress)
                     && IPAddress.TryParse(light.IpAddress, out lightIP))
                 {
-                    var wizHandle = new WizHandle(light.MacAddress, lightIP);
-                    var state = new WizState();
-                    state.Method = WizMethod.setPilot;
-                    state.Params = new WizParams
+                    try
                     {
-                        State = request.On,
-                        Dimming = request.Dimming
-                    };
-                    if (request.Red.HasValue) { state.Params.R = request.Red.Value; }
-                    if (request.Green.HasValue) { state.Params.G = request.Green.Value; }
-                    if (request.Blue.HasValue) { state.Params.B = request.Blue.Value; }
-                    if (request.Temperature.HasValue) { state.Params.Temp = request.Temperature.Value; }
+                        var wizHandle = new WizHandle(light.MacAddress, lightIP);
+                        var state = new WizState();
+                        state.Method = WizMethod.setPilot;
+                        state.Params = new WizParams
+                        {
+                            State = request.On,
+                            Dimming = request.Dimming
+                        };
+                        if (request.Red.HasValue) { state.Params.R = request.Red.Value; }
+                        if (request.Green.HasValue) { state.Params.G = request.Green.Value; }
+                        if (request.Blue.HasValue) { state.Params.B = request.Blue.Value; }
+                        if (request.Temperature.HasValue) { state.Params.Temp = request.Temperature.Value; }
 
-                    wizSocket.SendTo(state, wizHandle);
+                        wizSocket.SendTo(state, wizHandle);
 
-                    WizResult pilot;
-                    while (true)
+                        WizResult pilot;
+                        while (true)
+                        {
+                            state = wizSocket.ReceiveFrom(wizHandle);
+                            pilot = state.Result;
+                            break;
+                        }
+                    }
+                    catch (System.Net.Sockets.SocketException ex)
                     {
-                        state = wizSocket.ReceiveFrom(wizHandle);
-                        pilot = state.Result;
-                        break;
+                        _logger.LogError(ex, $"Error updating light {light.MacAddress} : {light.IpAddress}");
                     }
                 }
             }
@@ -94,20 +101,27 @@ public class WizController : ControllerBase
                     && !string.IsNullOrWhiteSpace(light.IpAddress)
                     && IPAddress.TryParse(light.IpAddress, out lightIP))
                 {
-                    var wizHandle = new WizHandle(light.MacAddress, lightIP);
-                    var state = WizState.MakeGetPilot();
-
-                    wizSocket.SendTo(state, wizHandle);
-
-                    WizResult pilot;
-                    while (true)
+                    try
                     {
-                        state = wizSocket.ReceiveFrom(wizHandle);
-                        pilot = state.Result;
-                        break;
-                    }
+                        var wizHandle = new WizHandle(light.MacAddress, lightIP);
+                        var state = WizState.MakeGetPilot();
 
-                    results.Add(pilot);
+                        wizSocket.SendTo(state, wizHandle);
+
+                        WizResult pilot;
+                        while (true)
+                        {
+                            state = wizSocket.ReceiveFrom(wizHandle);
+                            pilot = state.Result;
+                            break;
+                        }
+
+                        results.Add(pilot);
+                    }
+                    catch (System.Net.Sockets.SocketException ex)
+                    {
+                        _logger.LogError(ex, $"Error getting light status for {light.MacAddress} : {light.IpAddress}");
+                    }
                 }
             }
 
